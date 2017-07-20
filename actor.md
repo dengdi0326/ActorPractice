@@ -77,4 +77,6 @@ supervision对应actor中的Supervisor Strategy。当一个子actor有异常，a
 *   竞态条件
 *   非阻塞担保（进展条件）
 
+
+## 个人理解
 actor是一个幕后调度机制，比如开始编写一个项目，把项目分成大的任务块然后再逐级分层，最后分成一个无法再分的小任务，类似与一个树状形态。在这个过程中，actor也跟着任务逐级创建子actor或是新actor，最后形成树状。低级的actor只向上级actor传达信息，同级之间独立运行。每个actor有自己的任务，通过mailbox进行传达。
