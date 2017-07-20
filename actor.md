@@ -1,82 +1,36 @@
-# proto -actor
+# actor
 
-## actor
+组成：State,Behavior,Mailbox,Children,Supervisor Strategy
+封装在Actor Reference中
 
-> An actor is a container for State, Behavior, a Mailbox, Children and a Supervisor Strategy. All of this is encapsulated behind an Actor Reference(ActorRef).
+### 1.Actor Reference
 
-actor像是一个封装的结构体，每一个actor 里面包括State, Behavior, a Mailbox, Children ，a Supervisor Strategy五个部分。
+actor对象需要从外部屏蔽，actor通过Actor Reference表示外部，Actor Reference传递象。从不同的应用向Actor发送信息，Actor不向外部发送信息，外部无法掌控信息
 
-从外部调用方看，看不到actor内部的具体结构。
+### 2.State（状态）
 
-### 1.state
+actor对象通常会包含一些反映actor可能处于状态的变量，这些数据要避免其它actor的影响，Proto.Actor在概念上都有自己的轻量级线程，它完全与系统的其他部分屏蔽。这意味着，不必使用锁同步访问，您只需编写您的actor代码，而不必担心并发性,Proto.Actor将在一组真正的线程上运行一组actor，通常许多actor共享一个线程，并且一个actor的后续调用可能最终在不同的线程上被处理。 Proto.Actor确保这个实现细节不会影响处理演员状态的单线程。
+内部状态对于演员的操作至关重要，所以状态不一致是致命的,actor失败重新启动会从头开始创建，持续接受数据在重新启动后重新播放来恢复到重启之前
 
-#### state 是表示actor内部的状态的变量。
+### 3.Behavior(行为)
 
-每一个actor都拥有自己的light-weight thread,。--意味着运行多个actor的时候，每个actor独立运行，并且彼此之间过程不可见。因此不需要使用锁的机制，同时不用担心并发的问题。
+行为是指定义在该时间点对消息作出反应的动作的function,行为可能会随时间而变化，重新启动actor会将其行为重置为该初始行为
 
-light-weight thread可以当作go中使用go func 语句启用的协程
+#### 4.Mailbox(邮箱)
 
-多个独立运行的actor可能在同一个线程中运行。
+actor的目的是处理消息，并将这些消息从其他actor（或从actor系统外部）发送给actor,连接发送者和接收者的部分是actor的邮箱,每一个actor有一个邮箱，线程之间分布参与者的明显随机性，从同一个演员发送多个消息到同一个目标，将以相同的顺序排列它们，由actor处理的邮件的顺序与排入队列的顺序相匹配，处理特殊优先级顺序的信息由队列的算法定义Proto.Actor与其他actor模型实现不同的一个重要特征是当前行为必须始终处理下一个出队消息，因此没有扫描下一个匹配邮件的邮箱
 
-对于一个actor的多次调用可能在不同线程上执行。
+### 5.children(子actor)
 
-当actor失败被上层重启的时候，状态量会重置。--系统的自我修复能力
+创建子actor,actor本身就会自动监督他们，同时可以使用他们，实际的创建和终止操作以异步方式发生在幕后，
 
-### 2.behavior
+创建（Context.ActorOf（...））或停止（Context.Stop（child））
 
-behavior 是一个函数。
-一个actor中有许多behavior，消息在被处理的时候，会根据时间点匹配到actor中的某个behavior。
+### 6.Supervisor Strategy(主管策略)
 
-actor对象在创建时所定义的初始行为是特殊的，因为actor重启时会恢复这个初始行为。（初始行为不需要匹配？？创建actor后自动运行？？）
+处理子actor故障的策略，actor一旦创建，strategy不能被更改，每个actor只有一个这样的策略，适用于各种子actor
 
-### 3.mailbox
+### 7.终止
 
-消息是由不同的actor之间互相转发，连接两个不同的actor是通过actor中的mailbox。每个actor有且只有一个mailbox。
-
-一个actor，接收到的信息会在mailbox排队，根据“发送”操作的时间排队。
-
-可以有不同的 mailbox实现 供选择，缺省的是FIFO。
-按发送操作的时间排队的mailbox;有按消息优先级插入的mailbox。
-
-一个actor接收消息，先按照mailbox形成消息队列，actor永远处理消息队列中的下一个取出来的消息。两个动作同时进行。
-
-### 4.children
-
-actor 可以创建子actor，然后成为子actor的监管者。也就是，可以对子actor进行一些操作。
-
-创建(context.actorOf(...))或者停止(context.stop(child))子actor
-
-### 5.Supervisor Strategy
-
-actor中的最后一部分，对子actor的错误状况处理。当子actor出现某种错误的时候，根据actor中已有的同种错误情况下的策略对子actor进行某种操作。
-
-> 顶级的系统actor被监管的策略是，对收到的除ActorInitializationException和ActorKilledException之外的所有Exception无限地执行重启，这也将终止其所有子actor。
-
-两种类型的监管策略：OneForOneStrategy 和AllForOneStrategy
-
-strategy不可更改。
-
-## Supervision
-
-### 1.恢复下属，保持下属当前积累的内部状态
-
-### 2.重启下属，清除下属的内部状态
-
-### 3.永久地停止下属
-
-### 4.升级失败（沿监管树向上传递失败），由此失败自己
-
-supervision对应actor中的Supervisor Strategy。当一个子actor有异常，actor会把所有子actor和自己挂起（暂停执行。）然后像自己的父actor发送失败信息。然后父actor根据actor中的一个函数选择上面的一种方法。
-
-## 一些概念
-
-*   并发与并行
-*   异步与同步
-*   非阻塞与阻塞
-*   死锁vs饥饿vs活锁
-*   竞态条件
-*   非阻塞担保（进展条件）
-
-
-## 个人理解
-actor是一个幕后调度机制，比如开始编写一个项目，把项目分成大的任务块然后再逐级分层，最后分成一个无法再分的小任务，类似与一个树状形态。在这个过程中，actor也跟着任务逐级创建子actor或是新actor，最后形成树状。低级的actor只向上级actor传达信息，同级之间独立运行。每个actor有自己的任务，通过mailbox进行传达。
+一旦演员终止，即以不重新启动处理的方式发生故障，将自动停止或由其主管停止，它将释放其资源，将所有剩余的邮件从其邮箱中排入系统的“死信邮箱”
+邮箱通过actor reference被系统邮箱所代替
