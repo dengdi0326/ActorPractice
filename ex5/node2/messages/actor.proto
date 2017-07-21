@@ -1,0 +1,33 @@
+syntax = "proto3";
+package messages;
+
+//import "google/protobuf/any.proto";
+import "messages/gogo.proto";
+
+option (gostring_all) = false;
+
+message PID {
+    option (typedecl) = false;
+    option (stringer) = false;
+    string address = 1;
+    string id = 2;
+}
+
+//user messages
+message PoisonPill {}
+
+//system messages
+message Watch {
+    PID watcher = 1;
+}
+
+message Unwatch {
+    PID watcher = 1;
+}
+
+message Terminated {
+    PID who = 1;
+    bool address_terminated = 2;
+}
+
+message Stop {}
